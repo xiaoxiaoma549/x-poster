@@ -1,58 +1,57 @@
 #!/usr/bin/env python3
-"""Post to X via subprocess with clean UTF-8 environment."""
-import asyncio, json, os, subprocess, sys
+"""Post to X via direct GraphQL API call. No twikit dependency."""
+import json, os, subprocess, sys
 
-text = os.environ["TWEET_TEXT"]
+text = os.environ["TWEET_TEXT"][:280]
+auth_token = os.environ["AUTH_TOKEN"]
+ct0 = os.environ["CT0"]
+kdt = os.environ.get("KDT", "")
 
-# Run twikit in a subprocess with LANG=C.UTF-8
-env = {
-    "TWEET_TEXT": text,
-    "AUTH_TOKEN": os.environ["AUTH_TOKEN"],
-    "CT0": os.environ["CT0"],
-    "KDT": os.environ.get("KDT", ""),
-    "LANG": "C.UTF-8",
-    "LC_ALL": "C.UTF-8",
-    "PYTHONUTF8": "1",
-    "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
-}
+# Use curl for the GraphQL call (no Python encoding issues at all)
+payload = json.dumps({
+    "variables": {
+        "tweet_text": text,
+        "dark_request": False,
+        "media": {"media_entities": [], "possibly_sensitive": False},
+        "semantic_annotation_ids": {}
+    },
+    "queryId": "47mfhSw7D4cm48ljEBV_7w"
+})
 
-code = """
-import asyncio, os, sys
-sys.stdout = open('/dev/null', 'w')
-sys.stderr = open('/dev/null', 'w')
-from twikit import Client
+cookie = f"auth_token={auth_token}; ct0={ct0}"
+if kdt:
+    cookie += f"; kdt={kdt}"
 
-async def post():
-    c = Client(language='en-US')
-    c.set_cookies({'auth_token': os.environ['AUTH_TOKEN'], 'ct0': os.environ['CT0']})
-    if os.environ.get('KDT'): c.set_cookies({'auth_token': os.environ['AUTH_TOKEN'], 'ct0': os.environ['CT0'], 'kdt': os.environ['KDT']})
-    t = await c.create_tweet(text=os.environ['TWEET_TEXT'][:280])
-    return t.id
+bearer = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs=1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
 
-try:
-    tid = asyncio.run(post())
-    with open('/tmp/xpost_r', 'w') as f: f.write(f'OK {tid}')
-except Exception as e:
-    with open('/tmp/xpost_r', 'w') as f: f.write(f'ERR {e}')
-"""
+result = subprocess.run([
+    "curl", "-s", "-w", "\n%{http_code}",
+    "-H", f"Authorization: Bearer {bearer}",
+    "-H", f"X-CSRF-Token: {ct0}",
+    "-H", f"Cookie: {cookie}",
+    "-H", "Content-Type: application/json",
+    "-H", "User-Agent: Mozilla/5.0 (X11; Linux x86_64)",
+    "-H", "Origin: https://x.com",
+    "-H", "Referer: https://x.com/",
+    "-d", payload,
+    "https://x.com/i/api/graphql/47mfhSw7D4cm48ljEBV_7w/CreateTweet"
+], capture_output=True, text=True, timeout=30)
 
-result = subprocess.run(
-    ["python3", "-c", code],
-    capture_output=True, text=True,
-    env=env, timeout=60,
-)
+lines = result.stdout.strip().split("\n")
+http_code = lines[-1].strip()
+body = "\n".join(lines[:-1])
 
-# Read result file
-try:
-    with open("/tmp/xpost_r") as f:
-        line = f.read().strip()
-    if line.startswith("OK "):
-        tid = line[3:]
+if http_code == "200":
+    try:
+        data = json.loads(body)
+        tid = data["data"]["create_tweet"]["tweet_results"]["result"]["rest_id"]
         print(f"OK tweet_id={tid}")
         print(f"URL=https://x.com/user/status/{tid}")
-    else:
-        print(f"ERROR: {line[4:]}")
+    except (KeyError, json.JSONDecodeError) as e:
+        print(f"ERROR: parse failed: {e}")
+        print(f"BODY: {body[:200]}")
         exit(1)
-except FileNotFoundError:
-    print(f"ERROR: no result file. stdout={result.stdout} stderr={result.stderr}")
+else:
+    print(f"ERROR: HTTP {http_code}")
+    print(f"BODY: {body[:300]}")
     exit(1)
