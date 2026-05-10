@@ -13,10 +13,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
-      - run: pip install twikit -q
       - name: post
         shell: bash
         env:
@@ -25,6 +21,4 @@ jobs:
           CT0: ${{ secrets.X_CT0 }}
           KDT: ${{ secrets.X_KDT }}
         run: |
-          python3 post_to_x.py 2>/dev/null || true
-          echo "=== RESULT ==="
-          cat /tmp/xpost_result 2>/dev/null || cat /tmp/xpost_r 2>/dev/null || echo "(no result)"
+          python3 post_to_x.py
