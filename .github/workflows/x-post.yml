@@ -1,60 +1,37 @@
-name: Post to X
+name: Debug twikit
 
 on:
   workflow_dispatch:
     inputs:
       tweet_text:
-        description: 'Tweet text'
+        description: text
         required: true
         type: string
 
 jobs:
-  post:
+  debug:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - run: locale
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Install twikit
-        run: pip install twikit
-
-      - name: Post tweet
+      - run: pip install twikit
+      - name: test
         shell: bash
         env:
           TWEET_TEXT: ${{ inputs.tweet_text }}
           AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
           CT0: ${{ secrets.X_CT0 }}
           KDT: ${{ secrets.X_KDT }}
-          PYTHONUTF8: "1"
         run: |
-          python3 -X utf8 << 'PYEOF'
-          import asyncio, io, os, sys
-
-          # Nuclear option: force stdout/stderr to UTF-8
-          sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
-          sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
-
-          from twikit import Client
-
-          text = os.environ["TWEET_TEXT"]
-          cookies = {"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]}
-          if os.environ.get("KDT"):
-              cookies["kdt"] = os.environ["KDT"]
-
-          async def post():
-              c = Client(language="en-US")
-              c.set_cookies(cookies)
-              t = await c.create_tweet(text=text[:280])
-              return t.id
-
-          try:
-              tid = asyncio.run(post())
-              print(f"OK tweet_id={tid}")
-              print(f"URL=https://x.com/user/status/{tid}")
-          except Exception as e:
-              err = str(e).encode("ascii", errors="replace").decode()
-              print(f"ERROR: {err}", file=sys.stderr)
-              exit(1)
-          PYEOF
+          python3 -c "
+          import os,sys
+          print('stdout encoding:', sys.stdout.encoding)
+          print('stderr encoding:', sys.stderr.encoding)
+          print('PYTHONUTF8 flag:', sys.flags.utf8_mode)
+          print('locale:', __import__('locale').getpreferredencoding())
+          text = os.environ.get('TWEET_TEXT','')
+          print('tweet text:', repr(text[:50]))
+          print('Is pure ASCII:', all(ord(c) < 128 for c in text))
+          "
