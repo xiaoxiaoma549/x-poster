@@ -12,9 +12,10 @@ jobs:
   post:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - run: pip install twikit -q
       - name: post
         shell: bash
@@ -23,32 +24,4 @@ jobs:
           AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
           CT0: ${{ secrets.X_CT0 }}
           KDT: ${{ secrets.X_KDT }}
-        run: |
-          set +e
-          python3 << 'PYEOF' 2>/tmp/pyerr.log
-          import asyncio, os, sys
-          sys.stdout = open("/tmp/pyout.log", "w", encoding="utf-8")
-          sys.stderr = open("/tmp/pyerr2.log", "w", encoding="utf-8")
-          from twikit import Client
-          text = os.environ["TWEET_TEXT"]
-          cookies = {"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]}
-          if os.environ.get("KDT"): cookies["kdt"] = os.environ["KDT"]
-          async def post():
-              c = Client(language="en-US")
-              c.set_cookies(cookies)
-              t = await c.create_tweet(text=text[:280])
-              return t.id
-          try:
-              tid = asyncio.run(post())
-              print(f"OK tweet_id={tid}")
-              print(f"URL=https://x.com/user/status/{tid}")
-          except Exception as e:
-              print(f"ERROR: {e}")
-              exit(1)
-          PYEOF
-          echo "=== PYOUT ==="
-          cat /tmp/pyout.log
-          echo "=== PYERR ==="
-          cat /tmp/pyerr.log
-          echo "=== PYERR2 ==="
-          cat /tmp/pyerr2.log
+        run: python3 post_to_x.py
