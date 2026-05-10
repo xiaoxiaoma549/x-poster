@@ -1,9 +1,17 @@
 #!/usr/bin/env python3
-"""Post to X - diagnostic version with full traceback."""
-import traceback, os, sys
+"""Post to X - with httpx encoding patch."""
+import asyncio, os, sys
+
+# Patch httpx to never use ascii encoding for headers
+import httpx._models as _models
+_orig_init = _models.Headers.__init__
+def _patched_init(self, headers=None, encoding=None):
+    if encoding is None:
+        encoding = "utf-8"
+    _orig_init(self, headers, encoding)
+_models.Headers.__init__ = _patched_init
 
 from twikit import Client
-import asyncio
 
 text = os.environ["TWEET_TEXT"]
 cookies = {"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]}
@@ -19,6 +27,7 @@ try:
     tid = asyncio.run(post())
     print(f"OK tweet_id={tid}")
     print(f"URL=https://x.com/user/status/{tid}")
-except Exception:
+except Exception as e:
+    import traceback
     traceback.print_exc()
     exit(1)
