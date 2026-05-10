@@ -25,7 +25,7 @@ from twikit import Client
 async def post():
     c = Client(language='en-US')
     c.set_cookies({'auth_token': os.environ['AUTH_TOKEN'], 'ct0': os.environ['CT0']})
-    if os.environ.get('KDT'): c.cookies['kdt'] = os.environ['KDT']
+    if os.environ.get('KDT'): c.set_cookies({'auth_token': os.environ['AUTH_TOKEN'], 'ct0': os.environ['CT0'], 'kdt': os.environ['KDT']})
     t = await c.create_tweet(text=os.environ['TWEET_TEXT'][:280])
     return t.id
 
