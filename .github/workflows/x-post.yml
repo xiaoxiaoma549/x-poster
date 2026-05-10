@@ -1,4 +1,4 @@
-name: Debug twikit
+name: Post to X
 
 on:
   workflow_dispatch:
@@ -9,29 +9,30 @@ on:
         type: string
 
 jobs:
-  debug:
+  post:
     runs-on: ubuntu-latest
     steps:
-      - run: locale
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - run: pip install twikit
+      - run: pip install twikit -q
       - name: test
         shell: bash
         env:
-          TWEET_TEXT: ${{ inputs.tweet_text }}
           AUTH_TOKEN: ${{ secrets.X_AUTH_TOKEN }}
           CT0: ${{ secrets.X_CT0 }}
-          KDT: ${{ secrets.X_KDT }}
         run: |
-          python3 -c "
-          import os,sys
-          print('stdout encoding:', sys.stdout.encoding)
-          print('stderr encoding:', sys.stderr.encoding)
-          print('PYTHONUTF8 flag:', sys.flags.utf8_mode)
-          print('locale:', __import__('locale').getpreferredencoding())
-          text = os.environ.get('TWEET_TEXT','')
-          print('tweet text:', repr(text[:50]))
-          print('Is pure ASCII:', all(ord(c) < 128 for c in text))
-          "
+          python3 << 'PYEOF'
+          import os, sys, asyncio
+          sys.stdout = open("/proc/self/fd/1", "w", encoding="utf-8")
+          sys.stderr = open("/proc/self/fd/2", "w", encoding="utf-8")
+          print("importing...", flush=True)
+          from twikit import Client
+          print("twikit loaded", flush=True)
+          async def test():
+              c = Client(language="en-US")
+              c.set_cookies({"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]})
+              u = await c.user("XugangH")
+              print(f"user: {u.name}", flush=True)
+          asyncio.run(test())
+          PYEOF
