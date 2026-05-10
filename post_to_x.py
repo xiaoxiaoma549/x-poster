@@ -4,7 +4,11 @@ import asyncio, os, sys, time, hashlib
 
 # Patch httpx Headers encoding to utf-8
 import httpx._models as _m
-_m.Headers.__init__ = lambda self, h=None, e=None: _m.Headers.__init__.__wrapped__(self, h, e or "utf-8")
+_orig_h = _m.Headers.__init__
+def _patched_h(self, headers=None, encoding=None):
+    if encoding is None: encoding = "utf-8"
+    _orig_h(self, headers, encoding)
+_m.Headers.__init__ = _patched_h
 
 # Bypass KEY_BYTE + generate fake transaction ID
 import twikit.x_client_transaction.transaction as _ct
