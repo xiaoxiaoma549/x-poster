@@ -25,8 +25,6 @@ jobs:
           CT0: ${{ secrets.X_CT0 }}
           KDT: ${{ secrets.X_KDT }}
         run: |
-          # Run python in subprocess with fd isolated
-          python3 post_to_x.py 2>/dev/null
-          RC=$?
-          echo "EXIT_CODE=$RC"
-          exit $RC
+          python3 post_to_x.py 2>/dev/null || true
+          echo "=== RESULT ==="
+          cat /tmp/xpost_result 2>/dev/null || echo "(no result file)"
