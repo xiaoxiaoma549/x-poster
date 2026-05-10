@@ -24,8 +24,11 @@ jobs:
           CT0: ${{ secrets.X_CT0 }}
           KDT: ${{ secrets.X_KDT }}
         run: |
-          python3 << 'PYEOF' 2>/tmp/err.log >/tmp/out.log
-          import asyncio, os
+          set +e
+          python3 << 'PYEOF' 2>/tmp/pyerr.log
+          import asyncio, os, sys
+          sys.stdout = open("/tmp/pyout.log", "w", encoding="utf-8")
+          sys.stderr = open("/tmp/pyerr2.log", "w", encoding="utf-8")
           from twikit import Client
           text = os.environ["TWEET_TEXT"]
           cookies = {"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]}
@@ -40,12 +43,12 @@ jobs:
               print(f"OK tweet_id={tid}")
               print(f"URL=https://x.com/user/status/{tid}")
           except Exception as e:
-              print(f"ERROR: {e}", file=open("/tmp/err2.log","w"))
+              print(f"ERROR: {e}")
               exit(1)
           PYEOF
-          echo "=== OUT ==="
-          cat /tmp/out.log
-          echo "=== ERR ==="
-          cat /tmp/err.log
-          echo "=== ERR2 ==="
-          cat /tmp/err2.log 2>/dev/null || echo "(none)"
+          echo "=== PYOUT ==="
+          cat /tmp/pyout.log
+          echo "=== PYERR ==="
+          cat /tmp/pyerr.log
+          echo "=== PYERR2 ==="
+          cat /tmp/pyerr2.log
