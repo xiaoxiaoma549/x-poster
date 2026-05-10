@@ -30,7 +30,12 @@ jobs:
           PYTHONUTF8: "1"
         run: |
           python3 -X utf8 << 'PYEOF'
-          import asyncio, os, sys
+          import asyncio, io, os, sys
+
+          # Nuclear option: force stdout/stderr to UTF-8
+          sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
+          sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8")
+
           from twikit import Client
 
           text = os.environ["TWEET_TEXT"]
@@ -46,9 +51,10 @@ jobs:
 
           try:
               tid = asyncio.run(post())
-              sys.stdout.buffer.write(f"OK tweet_id={tid}\n".encode())
-              sys.stdout.buffer.write(f"URL=https://x.com/user/status/{tid}\n".encode())
+              print(f"OK tweet_id={tid}")
+              print(f"URL=https://x.com/user/status/{tid}")
           except Exception as e:
-              sys.stderr.buffer.write(f"ERROR: {e}\n".encode("ascii", errors="replace"))
+              err = str(e).encode("ascii", errors="replace").decode()
+              print(f"ERROR: {err}", file=sys.stderr)
               exit(1)
           PYEOF
