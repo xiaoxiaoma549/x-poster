@@ -24,29 +24,28 @@ jobs:
           CT0: ${{ secrets.X_CT0 }}
           KDT: ${{ secrets.X_KDT }}
         run: |
-          python3 << 'PYEOF'
-          import asyncio, logging, os, sys
-          logging.disable(logging.CRITICAL)
-          os.environ["PYTHONWARNINGS"] = "ignore"
-          sys.stdout = open("/proc/self/fd/1", "w", encoding="utf-8")
-          sys.stderr = open("/proc/self/fd/2", "w", encoding="utf-8")
+          python3 << 'PYEOF' 2>/tmp/err.log >/tmp/out.log
+          import asyncio, os
           from twikit import Client
-
           text = os.environ["TWEET_TEXT"]
           cookies = {"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]}
           if os.environ.get("KDT"): cookies["kdt"] = os.environ["KDT"]
-
           async def post():
               c = Client(language="en-US")
               c.set_cookies(cookies)
               t = await c.create_tweet(text=text[:280])
               return t.id
-
           try:
               tid = asyncio.run(post())
               print(f"OK tweet_id={tid}")
               print(f"URL=https://x.com/user/status/{tid}")
           except Exception as e:
-              print(f"ERROR: {e}")
+              print(f"ERROR: {e}", file=open("/tmp/err2.log","w"))
               exit(1)
           PYEOF
+          echo "=== OUT ==="
+          cat /tmp/out.log
+          echo "=== ERR ==="
+          cat /tmp/err.log
+          echo "=== ERR2 ==="
+          cat /tmp/err2.log 2>/dev/null || echo "(none)"
