@@ -5,16 +5,26 @@ import asyncio
 import os
 import sys
 
-# 确保 stdout 支持 Unicode
-sys.stdout.reconfigure(encoding="utf-8") if hasattr(sys.stdout, "reconfigure") else None
+# 强制 stdout 用 UTF-8 — 防止 Runner locale 吃掉 Unicode
+sys.stdin.reconfigure(encoding="utf-8")
+sys.stdout.reconfigure(encoding="utf-8")
+sys.stderr.reconfigure(encoding="utf-8")
 
 from twikit import Client
+
+
+def out(msg):
+    """安全打印，确保不含不可编码字符"""
+    try:
+        print(msg, flush=True)
+    except UnicodeEncodeError:
+        print(msg.encode("ascii", errors="replace").decode(), flush=True)
 
 
 async def main():
     text = os.environ.get("TWEET_TEXT", "").strip()
     if not text:
-        print("❌ TWEET_TEXT 为空")
+        out("FAIL: TWEET_TEXT is empty")
         sys.exit(1)
 
     # 从环境变量加载 cookie
@@ -26,7 +36,7 @@ async def main():
         cookies["kdt"] = os.environ["X_KDT"]
 
     if not cookies["auth_token"] or not cookies["ct0"]:
-        print("❌ Cookie 不完整（缺少 X_AUTH_TOKEN 或 X_CT0）")
+        out("FAIL: Cookie incomplete (missing X_AUTH_TOKEN or X_CT0)")
         sys.exit(1)
 
     client = Client(language="en-US")
@@ -36,12 +46,13 @@ async def main():
         tweet = await client.create_tweet(text=text[:280])
         tweet_id = tweet.id
         url = f"https://x.com/user/status/{tweet_id}"
-        print(f"✅ 发布成功！")
-        print(f"   ID: {tweet_id}")
-        print(f"   URL: {url}")
-        print(f"   内容: {text[:60]}...")
+        out(f"OK tweet_id={tweet_id}")
+        out(f"URL={url}")
     except Exception as e:
-        print(f"❌ 发布失败: {type(e).__name__}: {e}")
+        err = f"{type(e).__name__}: {e}"
+        # 清理不可编码字符
+        safe_err = err.encode("ascii", errors="replace").decode()
+        out(f"FAIL: {safe_err}")
         sys.exit(1)
 
 
