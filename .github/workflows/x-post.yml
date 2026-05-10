@@ -27,4 +27,4 @@ jobs:
         run: |
           python3 post_to_x.py 2>/dev/null || true
           echo "=== RESULT ==="
-          cat /tmp/xpost_result 2>/dev/null || echo "(no result file)"
+          cat /tmp/xpost_result 2>/dev/null || cat /tmp/xpost_r 2>/dev/null || echo "(no result)"
