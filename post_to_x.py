@@ -1,38 +1,23 @@
 #!/usr/bin/env python3
-"""Post to X via twikit on GitHub Actions runner. ASCII-safe output."""
-
+"""Post to X via twikit. Runs on GitHub Actions (USA, no proxy)."""
 import asyncio, os, sys
 from twikit import Client
 
+text = os.environ["TWEET_TEXT"]
+cookies = {"auth_token": os.environ["AUTH_TOKEN"], "ct0": os.environ["CT0"]}
+if os.environ.get("KDT"): cookies["kdt"] = os.environ["KDT"]
 
-def main():
-    text = os.environ.get("TWEET_TEXT", "").strip()
-    if not text:
-        sys.stderr.buffer.write(b"ERROR: empty tweet text\n")
-        sys.exit(1)
+async def post():
+    c = Client(language="en-US")
+    c.set_cookies(cookies)
+    t = await c.create_tweet(text=text[:280])
+    return t.id
 
-    cookies = {"auth_token": os.environ.get("X_AUTH_TOKEN", ""),
-               "ct0": os.environ.get("X_CT0", "")}
-    if os.environ.get("X_KDT"):
-        cookies["kdt"] = os.environ["X_KDT"]
-    if not cookies["auth_token"] or not cookies["ct0"]:
-        sys.stderr.buffer.write(b"ERROR: missing cookies\n")
-        sys.exit(1)
-
-    async def post():
-        client = Client(language="en-US")
-        client.set_cookies(cookies)
-        tweet = await client.create_tweet(text=text[:280])
-        return tweet.id
-
-    try:
-        tid = asyncio.run(post())
-        sys.stdout.buffer.write(f"OK tweet_id={tid}\nURL=https://x.com/user/status/{tid}\n".encode())
-    except Exception as e:
-        err = str(e).encode("ascii", errors="replace")
-        sys.stderr.buffer.write(b"ERROR: " + err + b"\n")
-        sys.exit(1)
-
-
-if __name__ == "__main__":
-    main()
+try:
+    tid = asyncio.run(post())
+    print(f"OK tweet_id={tid}", flush=True)
+    print(f"URL=https://x.com/user/status/{tid}", flush=True)
+except Exception as e:
+    err = str(e).encode("ascii", errors="replace").decode()
+    print(f"ERROR: {err}", flush=True)
+    exit(1)
