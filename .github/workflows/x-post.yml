@@ -30,3 +30,4 @@ jobs:
           X_KDT: ${{ secrets.X_KDT }}
           LANG: C.UTF-8
           PYTHONIOENCODING: utf-8
+          PYTHONUTF8: 1
