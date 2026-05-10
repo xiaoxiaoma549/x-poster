@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
-"""Post to X via twikit. Suppress all stdout during twikit call."""
+"""Post to X via twikit. Writes result to /tmp/xpost_result."""
 import asyncio, io, os, sys
+
+# Isolate ALL output to /dev/null
+devnull = open("/dev/null", "w")
+sys.stdout = devnull
+sys.stderr = devnull
 
 from twikit import Client
 
@@ -14,21 +19,13 @@ async def post():
     t = await c.create_tweet(text=text[:280])
     return t.id
 
-# Temporarily suppress all stdout to prevent twikit internal encoding errors
-old_out = sys.stdout
-old_err = sys.stderr
-sys.stdout = io.StringIO()
-sys.stderr = io.StringIO()
-
 try:
     tid = asyncio.run(post())
-    sys.stdout = old_out
-    sys.stderr = old_err
-    print(f"OK tweet_id={tid}", flush=True)
-    print(f"URL=https://x.com/user/status/{tid}", flush=True)
+    with open("/tmp/xpost_result", "w") as f:
+        f.write(f"OK tweet_id={tid}\n")
+        f.write(f"URL=https://x.com/user/status/{tid}\n")
 except Exception as e:
-    sys.stdout = old_out
-    sys.stderr = old_err
     err = str(e).encode("ascii", errors="replace").decode()
-    print(f"ERROR: {err}", flush=True)
+    with open("/tmp/xpost_result", "w") as f:
+        f.write(f"ERROR: {err}\n")
     exit(1)
