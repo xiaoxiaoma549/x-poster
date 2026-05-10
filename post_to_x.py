@@ -5,6 +5,9 @@ import asyncio
 import os
 import sys
 
+# 确保 stdout 支持 Unicode
+sys.stdout.reconfigure(encoding="utf-8") if hasattr(sys.stdout, "reconfigure") else None
+
 from twikit import Client
 
 
