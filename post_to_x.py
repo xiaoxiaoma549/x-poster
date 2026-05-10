@@ -1,15 +1,27 @@
 #!/usr/bin/env python3
-"""Post to X - with httpx encoding patch."""
+"""Post to X - with httpx encoding patch + bypass KEY_BYTE."""
 import asyncio, os, sys
 
-# Patch httpx to never use ascii encoding for headers
-import httpx._models as _models
-_orig_init = _models.Headers.__init__
+# Patch httpx
+import httpx._models as _m
+_orig_init = _m.Headers.__init__
 def _patched_init(self, headers=None, encoding=None):
     if encoding is None:
         encoding = "utf-8"
     _orig_init(self, headers, encoding)
-_models.Headers.__init__ = _patched_init
+_m.Headers.__init__ = _patched_init
+
+# Bypass twikit's client_transaction KEY_BYTE check
+import twikit.x_client_transaction.transaction as ct
+_orig_get_indices = ct.ClientTransaction.get_indices
+async def _patched_get_indices(self, *a, **kw):
+    try:
+        return await _orig_get_indices(self, *a, **kw)
+    except Exception:
+        self.DEFAULT_ROW_INDEX = 0
+        self.DEFAULT_KEY_BYTES_INDICES = [0]
+        return 0, [0]
+ct.ClientTransaction.get_indices = _patched_get_indices
 
 from twikit import Client
 
